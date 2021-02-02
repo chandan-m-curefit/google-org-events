@@ -35,9 +35,11 @@ Functions:
                 ....
             ]
 
+
+Google Workspace Admin SDK > Directory API
+https://developers.google.com/admin-sdk/directory/v1/quickstart/python
+   
 Steps to Run:
-    Google Workspace Admin SDK > Directory API
-    https://developers.google.com/admin-sdk/directory/v1/quickstart/python?authuser=6
 
     1.Enable DirectoryAPI - Crete Cloud Platform Project - From the admin account
     2.Download credentials.json and place in working directory
