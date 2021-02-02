@@ -1,6 +1,7 @@
 Python Sript to Fetch Users and their Meeting details.
 
 Functions:
+
     1. getUsers(active=False, suspended=False, deleted=False)
         - Gets a list of users in the Organization
         - If no parameters are set, it fetches all types of users.
