@@ -1,0 +1,6 @@
+{"email": "samplecf@joefix.in", "name": "Chandan Manjunath", "status": "active"}
+{"email": "sample2@joefix.in", "name": "Sample Two", "status": "active"}
+{"email": "sample1@joefix.in", "name": "Sample One", "status": "active"}
+{"email": "sampledel2@joefix.in", "name": "Sample Del2", "status": "active"}
+{"email": "samplesus1@joefix.in", "name": "Sample Sus1", "status": "suspended"}
+{"email": "sampledel1@joefix.in", "name": "Sample Del1", "status": "deleted"}

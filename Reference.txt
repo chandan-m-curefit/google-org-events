@@ -1,0 +1,39 @@
+APIs:
+1. Get a list of users.
+users.list
+GET https://admin.googleapis.com/admin/directory/v1/users
+https://developers.google.com/admin-sdk/directory/reference/rest/v1/users/list
+Params:
+    customer - my_customer(current customer_id)
+    domain - to get fields from only one domain
+    (either customer ofr domain must be specified)
+    maxResults - int
+    pageToken - hich page to retrieve.
+    showDeleted - if true retrieves a list of deleted users.
+
+
+    orderBy - email | familyNmae | givenName
+    sortOrder - ASCENDING | DESCENDING
+    viewType - domain_public | admin_view
+    projection - What subset of fields to fetch.
+    query - Search user fields https://developers.google.com/admin-sdk/directory/v1/guides/search-users
+    
+
+
+
+2. Get a list of calendar events events.
+events.list
+GET https://www.googleapis.com/calendar/v3/calendars/calendarId/events
+https://developers.google.com/calendar/v3/reference/events/list
+Params:
+    calendarId - "primary" or user-email
+    orderBy - startTime or updated
+    showDeleted - boolean - Show cancelled events?
+    singleEvents - boolean - Expand recurring events?
+    timeMax - End date
+    timeMin - Start date
+
+    showHiddenInvitations - Whether to include hidden invitations in the result.
+
+
+
