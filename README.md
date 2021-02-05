@@ -6,6 +6,7 @@
     - Gets a list of users in the Organization
     - If no parameters are set, it fetches all types of users.
     - If any parameter is set, then it fetches that type of user.
+    
             Response:
             [
                 { "email": "", "name": "", "status": ""},
@@ -16,6 +17,7 @@
     - Gets a list of meetings for the specified user
     - Date format: DD-MM-YYYY
     - If dates are not specified, then all meetings are fetched
+    
             Response:
             [
                 {"id": "", "summary": "", "startTime": "", "endTime": "", "status": "",  "attendees": [{"email": "", "responseStatus": ""},.... ]},
@@ -32,6 +34,7 @@
         - Fetches a list of users in the orgUnit
         - Then Fetches meetings for each user
         - Then keep distinct meetings
+        
                 Response:
                 [
                     {"id": "", "summary": "", "startTime": "", "endTime": "", "status": "", "attendees": [{"email": "", "responseStatus": ""},.... ]},
@@ -74,8 +77,11 @@
             - https://www.googleapis.com/auth/admin.directory.orgunit.readonly
 
 5. Install Google Client Library
+
         pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
 6. Change the following attribute in user_meetings.py:
+        
         - SERVICE_ACCOUNT_SUBJECT = "admin-user-email"
         
         Make sure
