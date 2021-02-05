@@ -8,19 +8,31 @@ from googleapiclient.errors import HttpError
 from google.oauth2 import service_account
 from datetime import datetime, timezone, timedelta
 import json
+import sys
 
+#________________________________
 #Asia/Kolkata Timezone
 ist = timezone(timedelta(hours=5,minutes=30))
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user.readonly', 'https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/admin.directory.orgunit.readonly']
+OAUTH_CREDENTIALS_FILE = 'credentials.json'
 SERVICE_ACCOUNT_FILE = 'service.json'
 SERVICE_ACCOUNT_SUBJECT = 'samplecf@joefix.in'
-#subject is the admin account with access rights
+#Subject is the admin account with access rights
+#Command Line Arguments:
+#   python user_meetings.py <path to credentials file> <admin account email>
+argLen = len(sys.argv)
+if argLen >= 2:
+    OAUTH_CREDENTIALS_FILE = sys.argv[1]
+    SERVICE_ACCOUNT_FILE = sys.argv[1]
+if argLen >=3:
+    SERVICE_ACCOUNT_SUBJECT = sys.argv[2]
 
 creds = None
 serviceAdmin = None #Directory API
 serviceCal = None #Calendar API
+#___________________________________
 
 def dateFormat(dateStr,endOfDay=False):
     if dateStr==None:
@@ -51,7 +63,7 @@ def connect_oauth():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                OAUTH_CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
@@ -74,14 +86,8 @@ def connect_service():
     serviceAdmin = build('admin', 'directory_v1', credentials=creds)
     serviceCal = build('calendar', 'v3', credentials=creds)
 
-'''def connect_api_key(apiKey):
-    serviceAdmin = None #Directory API
-    serviceCal = None #Calendar API
-    return serviceAdmin, serviceCal'''
-
-
 #userStatus = ('active','suspended','deleted')
-def listUsersHelper(userStatus=None,orgUnitPath=None, debug=False):
+def listUsersHelper(userStatus=None,orgUnitPath=None):
     userList = list()
     page_token = None
     query=""
@@ -90,23 +96,26 @@ def listUsersHelper(userStatus=None,orgUnitPath=None, debug=False):
     showDeleted=False
     if 'active'==userStatus: query+="isSuspended=False"
     elif 'suspended'==userStatus: query+="isSuspended=True"
-    elif 'deleted'==userStatus: showDeleted="True"
+    elif 'deleted'==userStatus: showDeleted=True
     try:
+        page = 1
         while True:
-            results = serviceAdmin.users().list(customer='my_customer', maxResults=100, orderBy='givenName', query=query, showDeleted=showDeleted, pageToken=page_token).execute()
+            results = serviceAdmin.users().list(customer='my_customer', orderBy='givenName', query=query, showDeleted=showDeleted, pageToken=page_token).execute()
             users = results.get('users', [])
+            print("Page {}: {} Users Fetched.".format(page,len(users)))
+            page+=1
             for user in users:
                 temp = {}
-                temp['email'] = user['primaryEmail']
-                temp['name'] = user['name']['fullName']
+                temp['email'] = user.get('primaryEmail', '')
+                temp['name'] = user.get('name',{}).get('fullName','')
                 temp['status'] = userStatus
                 userList.append(temp)
             page_token = results.get('nextPageToken')
             if not page_token:
                 break
     except HttpError as e:
-        if debug: print("ERROR: Invalid Input!\n",e)
-    
+        print("ERROR: Invalid Input!\n",e)
+    print("{} Total Users Found".format(len(userList)))
     return userList
 
 def getUsers(active=False, suspended=False, deleted=False):
@@ -118,7 +127,7 @@ def getUsers(active=False, suspended=False, deleted=False):
     userList = list()
     #Get all Active Users
     if active:
-        userList.extend(listUsersHelper('active',debug=True))
+        userList.extend(listUsersHelper('active'))
 
     #Get all Suspended Users
     if suspended:
@@ -131,7 +140,7 @@ def getUsers(active=False, suspended=False, deleted=False):
     return userList
 
 #Date format - DD-MM-YYYY        
-def getMeetingsForUser(user,startDate=None,endDate=None,showDeleted=False,debug=False):
+def getMeetingsForUser(user,startDate=None,endDate=None,showDeleted=False):
     if not serviceCal:
         print("ERROR: Not connected!")
         pass
@@ -146,53 +155,68 @@ def getMeetingsForUser(user,startDate=None,endDate=None,showDeleted=False,debug=
             for event in events:
                 #print(event['summary'],event['start']['dateTime'])
                 temp = {}
-                temp['id'] = event['id']
-                temp['summary'] = event['summary']
-                temp['startTime'] = event['start']['dateTime']
-                temp['endTime'] = event['end']['dateTime']
-                temp['status'] = event['status']
-                temp['attendees'] = event['attendees']
+                temp['id'] = event.get('id','')
+                temp['summary'] = event.get('summary','')
+                temp['startTime'] = event.get('start',{}).get('dateTime','')
+                temp['endTime'] = event.get('end',{}).get('dateTime','')
+                temp['status'] = event.get('status','')
+                temp['attendees'] = event.get('attendees',[])
                 meetings.append(temp)
             page_token = results.get('nextPageToken')
             if not page_token:
                 break
     except HttpError as e:
-        if debug: print("ERROR: User with email '"+email+"' not found!")
+        print("ERROR:",e)
 
     return meetings
 
 def getOrgUnits(orgUnitPath=None):
+    if not serviceAdmin:
+        print("ERROR: Not connected!")
+        pass
     results = serviceAdmin.orgunits().list(customerId='my_customer',orgUnitPath=orgUnitPath).execute()
     print(results)
     orgUnits = results.get("organizationUnits", [])
     for item in orgUnits:
-        print(item['orgUnitId'], item['name'], item['orgUnitPath'])
+        id = item.get('orgUnitId','')
+        name = item.get('name','')
+        path = item.get('orgUnitPath','')
+        print(id, name, path)
 
-def getUsersInOrgUnit(orgId=None, orgPath=None, debug=True):
+def getUsersInOrgUnit(orgId=None, orgPath=None):
+    if not serviceAdmin:
+        print("ERROR: Not connected!")
+        pass
     try:
         if orgId:
             results = serviceAdmin.orgunits().get(customerId='my_customer', orgUnitPath=orgId).execute()
             orgPath = results.get('orgUnitPath', None)
-
-        return listUsersHelper(orgUnitPath=orgPath, debug=debug)
+        userList = list()
+        userList.extend(listUsersHelper(userStatus='active',orgUnitPath=orgPath))
+        userList.extend(listUsersHelper(userStatus='suspended',orgUnitPath=orgPath))
+        print("{} total users found in orgUnit.".format(len(userList)))
+        return userList
     except HttpError as e:
-        if debug: print("ERROR: Invalid Input - orgId or orgPath Wrong!\n",e,"\n")
+        print("ERROR: Invalid Input - orgId or orgPath Wrong!\n",e,"\n")
         return list()
 
 def getDistinctMeetingsForOrg(startDate=None, endDate=None, orgId=None, orgPath=None, showDeleted=False):
+    if not(serviceCal and serviceAdmin):
+        print("ERROR: Not connected!")
+        pass
     userList = getUsersInOrgUnit(orgId=orgId, orgPath=orgPath)
+    print("\nNo. of users in the OrgUnit: {}\n".format(len(userList)))
     meetSet = set()
     meetList = list()
-    for user in userList:
+    for num,user in enumerate(userList):
         response = getMeetingsForUser(user=user['email'], startDate=startDate, endDate=endDate, showDeleted=showDeleted)
+        print("{}. {} : {} meetings found.".format(num,user['email'],len(response)))
         for item in response:
             if item['id'] not in meetSet:
                 meetSet.add(item['id'])
                 meetList.append(item)
+    print("\n Number of Distinct Meetings in the Org: {}".format(len(meetList)))
     return meetList
-
-
-
 
 def menuProgram():
     print("Select Option")
@@ -235,7 +259,7 @@ def menuProgram():
         if startDate=="":startDate = None
         if endDate=="":endDate = None
         #
-        meetList = getMeetingsForUser(email, startDate, endDate,debug=True)
+        meetList = getMeetingsForUser(email, startDate, endDate)
         #
         if meetList:
             with open( 'userMeetings.txt', 'w' ) as file:
@@ -254,10 +278,11 @@ def menuProgram():
         if startDate=="":startDate = None
         if endDate=="":endDate = None
         
-        userList= getUsers() #Fetches all users
+        userList= getUsers(active=True, suspended=True) #Fetches all active and suspended users
         if userList:
             with open( 'allUserMeetings.txt', 'w' ) as file:
                 for user in userList:
+                    #if(user['status']!='deleted'):
                     temp = user.copy()
                     meetList = getMeetingsForUser(user['email'], startDate, endDate)
                     temp['meetings'] = meetList
