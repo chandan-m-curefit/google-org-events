@@ -265,6 +265,7 @@ def menuProgram():
             with open( 'userMeetings.txt', 'w' ) as file:
                 for item in meetList:
                     file.write( json.dumps(item)+"\n" )
+            print("Number of meetings found: {}".format(len(meetList)))
             print("\nCheck userMeetings.txt for the result")
         else:
             print("\nNo Meetings Found!")
@@ -297,7 +298,7 @@ def menuProgram():
     elif choice=="4":
         print("\n4. Fetching list of Users in orgUnit\n")
         orgId = input("Enter OrgId - ")
-        orgPath = input("Enter OrgPth - ")
+        orgPath = input("Enter OrgPath - ")
         if orgId=="":orgId = None
         if orgPath=="":orgPath = None
         #
@@ -316,7 +317,7 @@ def menuProgram():
     elif(choice=="5"):
         print("\n5. Fetch distinct meetings in the orgUnit.\n")
         orgId = input("Enter OrgId - ")
-        orgPath = input("Enter OrgPth - ")
+        orgPath = input("Enter OrgPath - ")
         if orgId=="":orgId = None
         if orgPath=="":orgPath = None
         startDate = input("Enter Start Date (DD-MM-YYYY) - ")
