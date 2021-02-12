@@ -10,17 +10,21 @@ from datetime import datetime, timezone, timedelta
 import json
 import sys
 import time
+from multiprocessing import Pool
 
 # ________________________________
 # Asia/Kolkata Timezone
 ist = timezone(timedelta(hours=5, minutes=30))
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/calendar.readonly',
+SCOPES = ['https://www.googleapis.com/auth/admin.directory.user.readonly',
+          'https://www.googleapis.com/auth/calendar.readonly',
           'https://www.googleapis.com/auth/admin.directory.orgunit.readonly']
+
 OAUTH_CREDENTIALS_FILE = 'credentials.json'
 SERVICE_ACCOUNT_FILE = 'service.json'
 SERVICE_ACCOUNT_SUBJECT = 'samplecf@joefix.in'
+BATCH_SIZE = 10
 # Subject is the admin account with access rights
 # Command Line Arguments:
 #   python user_meetings.py <path to credentials file> <admin account email>
@@ -92,6 +96,13 @@ def connect_service():
     serviceCal = build('calendar', 'v3', credentials=creds)
 
 
+def connect_service_cal():
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES, subject=SERVICE_ACCOUNT_SUBJECT)
+    creds = credentials  # .with_subject('samplecf@joefix.in')
+    return build('calendar', 'v3', credentials=creds)
+
+
 # userStatus = ('active','suspended','deleted')
 def listUsersHelper(userStatus=None, orgUnitPath=None):
     userList = list()
@@ -156,9 +167,13 @@ def getUsers(active=False, suspended=False, deleted=False):
 
 # Date format - DD-MM-YYYY
 def getMeetingsForUser(user, startDate=None, endDate=None, showDeleted=False):
+    serviceCal = globals()['serviceCal']
     if not serviceCal:
-        print("ERROR: Not connected!")
-        pass
+        serviceCal = connect_service_cal()
+        if not serviceCal:
+            print("ERROR: Not connected!")
+            return
+
     startDate = dateFormat(startDate)
     endDate = dateFormat(endDate, endOfDay=True)
     page_token = None
@@ -166,7 +181,8 @@ def getMeetingsForUser(user, startDate=None, endDate=None, showDeleted=False):
     try:
         # page = 1
         while True:
-            results = serviceCal.events().list(calendarId=user, maxResults=2500, pageToken=page_token, singleEvents=True,
+            results = serviceCal.events().list(calendarId=user, maxResults=2500, pageToken=page_token,
+                                               singleEvents=True,
                                                orderBy='startTime', timeMin=startDate, timeMax=endDate,
                                                showDeleted=showDeleted).execute()
             events = results.get('items', [])
@@ -247,6 +263,39 @@ def getDistinctMeetingsForOrg(startDate=None, endDate=None, orgId=None, orgPath=
     return meetList
 
 
+def getDistinctMeetingsForOrgParallel(startDate=None, endDate=None, orgId=None, orgPath=None, showDeleted=False,
+                                      batchSize=1):
+    if not (serviceCal and serviceAdmin):
+        print("ERROR: Not connected!")
+        return
+    total_start_time = time.time()
+    userList = getUsersInOrgUnit(orgId=orgId, orgPath=orgPath)
+    userListLen = len(userList)
+    print("\nNo. of users in the OrgUnit: {}\n".format(len(userList)))
+    meetSet = set()
+    meetList = list()
+    num = 1
+    for i in range(0, len(userList), batchSize):
+        start_time = time.time()
+        batchRange = range(i, min(i + batchSize, userListLen))
+        batch = list()
+        for j in batchRange:
+            batch.append((userList[j]['email'], startDate, endDate, showDeleted))
+        with Pool(batchSize) as pool:
+            responseArr = pool.starmap(getMeetingsForUser, batch)
+        for j, num in enumerate(batchRange):
+            response = responseArr[j]
+            print("{}. {} : {} meetings found.".format(num, userList[num]['email'], len(response)))
+            for item in response:
+                if item['id'] not in meetSet:
+                    meetSet.add(item['id'])
+                    meetList.append(item)
+        print("--- Time: {} seconds ---".format(time.time() - start_time))
+    print("\n Number of Distinct Meetings in the Org: {}".format(len(meetList)))
+    print("--- Total Time: {} seconds ---".format(time.time() - total_start_time))
+    return meetList
+
+
 def menuProgram():
     print("Select Option")
     print("1. Fetch list of users")
@@ -306,16 +355,36 @@ def menuProgram():
         endDate = input("Enter End Date (DD-MM-YYYY) - ")
         if startDate == "": startDate = None
         if endDate == "": endDate = None
-
+        batchSize = BATCH_SIZE
+        total_start_time = time.time()
         userList = getUsers(active=True, suspended=True)  # Fetches all active and suspended users
+        userListLen = len(userList)
+        print("\nNo. of users : {}\n".format(len(userList)))
+
         if userList:
             with open('allUserMeetings.txt', 'w') as file:
-                for user in userList:
+                for i in range(0, len(userList), batchSize):
+                    start_time = time.time()
+                    batchRange = range(i, min(i + batchSize, userListLen))
+                    batch = list()
+                    for j in batchRange:
+                        batch.append((userList[j]['email'], startDate, endDate))
+                    with Pool(batchSize) as pool:
+                        responseArr = pool.starmap(getMeetingsForUser, batch)
+                    for j, num in enumerate(batchRange):
+                        response = responseArr[j]
+                        print("{}. {} : {} meetings found.".format(num, userList[num]['email'], len(response)))
+                        temp = userList[num].copy()
+                        temp['meetings'] = response
+                        file.write(json.dumps(temp) + "\n")
+                    print("--- Time: {} seconds ---".format(time.time() - start_time))
+                """for user in userList:
                     # if(user['status']!='deleted'):
                     temp = user.copy()
                     meetList = getMeetingsForUser(user['email'], startDate, endDate)
                     temp['meetings'] = meetList
-                    file.write(json.dumps(temp) + "\n")
+                    file.write(json.dumps(temp) + "\n")"""
+            print("--- Total Time: {} seconds ---".format(time.time() - total_start_time))
             print("\nCheck allUserMeetings.txt for the result")
         else:
             print("\nNo User Found!")
@@ -353,7 +422,12 @@ def menuProgram():
         if startDate == "": startDate = None
         if endDate == "": endDate = None
         #
-        meetList = getDistinctMeetingsForOrg(startDate=startDate, endDate=endDate, orgId=orgId, orgPath=orgPath)
+        meetList = getDistinctMeetingsForOrgParallel(
+            startDate=startDate, endDate=endDate, orgId=orgId,
+            orgPath=orgPath, batchSize=BATCH_SIZE
+        )
+        # meetList = getDistinctMeetingsForOrg(startDate=startDate, endDate=endDate, orgId=orgId, orgPath=orgPath)
+
         #
         if meetList:
             with open('orgDistinctMeetings.txt', 'w') as file:
