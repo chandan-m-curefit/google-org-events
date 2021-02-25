@@ -320,8 +320,9 @@ def menuProgram():
         # userList = getUsers(deleted = True) #Fetches deleted users
         if userList:
             with open('userList.txt', 'w') as file:
-                for item in userList:
-                    file.write(json.dumps(item) + "\n")
+                # for item in userList:
+                #     file.write(json.dumps(item) + "\n")
+                file.write(json.dumps(userList))
             print("\nCheck userList.txt for the result")
         else:
             print("\nNo User Found!")
@@ -340,8 +341,9 @@ def menuProgram():
         #
         if meetList:
             with open('userMeetings.txt', 'w') as file:
-                for item in meetList:
-                    file.write(json.dumps(item) + "\n")
+                # for item in meetList:
+                #     file.write(json.dumps(item) + "\n")
+                file.write(json.dumps(meetList))
             print("Number of meetings found: {}".format(len(meetList)))
             print("\nCheck userMeetings.txt for the result")
         else:
@@ -374,10 +376,12 @@ def menuProgram():
                     for j, num in enumerate(batchRange):
                         response = responseArr[j]
                         print("{}. {} : {} meetings found.".format(num, userList[num]['email'], len(response)))
-                        temp = userList[num].copy()
-                        temp['meetings'] = response
-                        file.write(json.dumps(temp) + "\n")
-                    print("--- Time: {} seconds ---".format(time.time() - start_time))
+                        # temp = userList[num].copy()
+                        # temp['meetings'] = response
+                        # file.write(json.dumps(temp) + "\n")
+                        userList[num]['meetings'] = response
+                        print("--- Time: {} seconds ---".format(time.time() - start_time))
+                file.write(json.dumps(userList))
                 """for user in userList:
                     # if(user['status']!='deleted'):
                     temp = user.copy()
@@ -403,8 +407,9 @@ def menuProgram():
         #
         if userList:
             with open('orgUserList.txt', 'w') as file:
-                for item in userList:
-                    file.write(json.dumps(item) + "\n")
+                # for item in userList:
+                #     file.write(json.dumps(item) + "\n")
+                file.write(json.dumps(userList))
             print("\nCheck orgUserList.txt for the result")
         else:
             print("\nNo User Found!")
@@ -431,8 +436,9 @@ def menuProgram():
         #
         if meetList:
             with open('orgDistinctMeetings.txt', 'w') as file:
-                for item in meetList:
-                    file.write(json.dumps(item) + "\n")
+                # for item in meetList:
+                #     file.write(json.dumps(item) + "\n")
+                file.write(json.dumps(meetList))
             print("\nCheck orgDistinctMeetings.txt for the result")
         else:
             print("\nNo Meetings Found!")

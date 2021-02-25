@@ -89,8 +89,8 @@
         - SERVICE_ACCOUNT_FILE = 'service.json'
         
         You can change BATCH_SIZE variable to the desired number of Parallel Processes for fetching Meeting Lists
-        - BATCH_SIZE = 4 (Default)
-        
+        - BATCH_SIZE = 10 (Default)
+
     OR
         - You can pass these as command line arguments 
 7. Run the python script:
