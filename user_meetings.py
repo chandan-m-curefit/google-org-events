@@ -196,7 +196,9 @@ def getMeetingsForUser(user, startDate=None, endDate=None, showDeleted=False):
                     'startTime': event.get('start', {}).get('dateTime', ''),
                     'endTime': event.get('end', {}).get('dateTime', ''),
                     'status': event.get('status', ''),
-                    'attendees': event.get('attendees', [])
+                    'attendees': event.get('attendees', []),
+                    'recurring': 'recurringEventId' in event,
+                    'recurringEventId': event.get('recurringEventId', None)
                 }
                 meetings.append(temp)
             page_token = results.get('nextPageToken')
