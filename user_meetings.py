@@ -11,6 +11,7 @@ import json
 import sys
 import time
 from multiprocessing import Pool
+import dateutil.parser
 
 # ________________________________
 # Asia/Kolkata Timezone
@@ -23,7 +24,7 @@ SCOPES = ['https://www.googleapis.com/auth/admin.directory.user.readonly',
 
 OAUTH_CREDENTIALS_FILE = 'credentials.json'
 SERVICE_ACCOUNT_FILE = 'service.json'
-SERVICE_ACCOUNT_SUBJECT = 'samplecf@joefix.in'
+SERVICE_ACCOUNT_SUBJECT = 'admin@joefix.in'
 BATCH_SIZE = 10
 # Subject is the admin account with access rights
 # Command Line Arguments:
@@ -52,6 +53,12 @@ def dateFormat(dateStr, endOfDay=False):
     except ValueError as e:
         print("Error:", e)
         exit()
+
+
+def dateConvertISOtoIST(dateStr):
+    date = dateutil.parser.isoparse(dateStr)
+    date = date.astimezone(ist)
+    return date.isoformat()
 
 
 def connect_oauth():
@@ -129,7 +136,8 @@ def listUsersHelper(userStatus=None, orgUnitPath=None):
                 temp = {
                     'email': user.get('primaryEmail', ''),
                     'name': user.get('name', {}).get('fullName', ''),
-                    'status': userStatus
+                    'status': userStatus,
+                    'creationTime': user.get('creationTime', '')
                 }
                 userList.append(temp)
             page_token = results.get('nextPageToken')
@@ -272,6 +280,13 @@ def getDistinctMeetingsForOrgParallel(startDate=None, endDate=None, orgId=None, 
         return
     total_start_time = time.time()
     userList = getUsersInOrgUnit(orgId=orgId, orgPath=orgPath)
+    if endDate:
+        endDateFormatted = dateFormat(endDate, endOfDay=True)
+        userListTemp = list()
+        for i in userList:
+            if dateConvertISOtoIST(i['creationTime']) <= endDateFormatted:
+                userListTemp.append(i)
+        userList = userListTemp
     userListLen = len(userList)
     print("\nNo. of users in the OrgUnit: {}\n".format(len(userList)))
     meetSet = set()
@@ -362,6 +377,13 @@ def menuProgram():
         batchSize = BATCH_SIZE
         total_start_time = time.time()
         userList = getUsers(active=True, suspended=True)  # Fetches all active and suspended users
+        if endDate:
+            endDateFormatted = dateFormat(endDate, endOfDay=True)
+            userListTemp = list()
+            for i in userList:
+                if dateConvertISOtoIST(i['creationTime']) <= endDateFormatted:
+                    userListTemp.append(i)
+            userList = userListTemp
         userListLen = len(userList)
         print("\nNo. of users : {}\n".format(len(userList)))
 
